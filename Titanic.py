@@ -1,22 +1,17 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Wed Jan 18 12:27:42 2023
-
-@author: Asus
-"""
-
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
-from sklearn.ensemble import GradientBoostingClassifier
+from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier
 from sklearn.model_selection import train_test_split, cross_val_score, GridSearchCV
 from sklearn.metrics import accuracy_score
 from sklearn.ensemble import VotingClassifier
 from sklearn.impute import SimpleImputer
 from sklearn.preprocessing import StandardScaler
+from sklearn.svm import SVC
+from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
+from sklearn.neighbors import KNeighborsClassifier
 from xgboost import XGBClassifier
-
 
 # Reading train and test data
 train = pd.read_csv("E:/Datasets/Kaggle/Titanic/train.csv")
@@ -166,10 +161,47 @@ def preprocess_name(data):
 train_label = train.loc[:,["Survived"]]
 train_data= train.copy()                                                                                          
 train_data.drop('Survived', axis=1, inplace=True)
+
+input_train = train.drop("Survived", axis=1)
+target_train = train["Survived"]
+X_train, X_val, y_train, y_val = train_test_split(input_train, target_train, test_size=0.2, random_state=0)
+
+
+# Train the classifiers
+rf = RandomForestClassifier(n_estimators=100, criterion='entropy', random_state=0)  #Randomforest
+rf.fit(X_train, y_train)
+
+svm = SVC(kernel='linear', random_state=0)  #SVM
+svm.fit(X_train, y_train)
+
+xgb = XGBClassifier(random_state=0)  #XGBoost
+xgb.fit(X_train, y_train)
+
+ada = AdaBoostClassifier(random_state=0)  #AdaBoost
+ada.fit(X_train, y_train)
+
+lda = LinearDiscriminantAnalysis()   #LDA
+lda.fit(X_train, y_train)
+
+knn = KNeighborsClassifier(n_neighbors=5)  #KNN
+knn.fit(X_train, y_train)
+
+# Predict the target values for the test set
+rf_output = rf.predict(X_val)
+svm_output = svm.predict(X_val)
+xgb_output = xgb.predict(X_val)
+ada_output = ada.predict(X_val)
+lda_output = lda.predict(X_val)
+knn_output = knn.predict(X_val)
+
+# Combine the outputs into a single dataframe
+df_output = pd.DataFrame({
+    "Random Forest": rf_output,
+    "SVM": svm_output,
+    "XGBoost": xgb_output,
+    "AdaBoost": ada_output,
+    "LDA": lda_output,
+    "KNN": knn_output
+})
    
     
-
-    
-
-
-
