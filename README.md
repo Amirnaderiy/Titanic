@@ -5,7 +5,7 @@ The Titanic Problem is based on the sinking of the 'Unsinkable' ship Titanic in 
 
 <div style="text-align:center">
 
-| **Features** | **Description** |
+| <span style="color:blue">Features</span> | <span style="color:blue">Description</span> |
 |----------|----------:|
 | **PassengerId** | A unique identifier for each passenger |
 | **Survived** | Indicates whether the passenger survived (1) or did not survive (0) |
@@ -21,5 +21,8 @@ The Titanic Problem is based on the sinking of the 'Unsinkable' ship Titanic in 
 | **Embarked** | The port of embarkation (C = Cherbourg, Q = Queenstown, S = Southampton) |
 
 </div>
+
+
+
 
 
