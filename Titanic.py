@@ -9,6 +9,7 @@ from sklearn.ensemble import VotingClassifier
 from sklearn.impute import SimpleImputer
 from sklearn.preprocessing import StandardScaler
 from sklearn.svm import SVC
+from sklearn.neural_network import MLPClassifier
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 from sklearn.neighbors import KNeighborsClassifier
 from xgboost import XGBClassifier
@@ -169,22 +170,19 @@ X_train, X_val, y_train, y_val = train_test_split(input_train, target_train, tes
 
 # Train the classifiers
 rf = RandomForestClassifier(n_estimators=100, criterion='entropy', random_state=0)  #Randomforest
-rf.fit(X_train, y_train)
 
 svm = SVC(kernel='linear', random_state=0)  #SVM
-svm.fit(X_train, y_train)
 
 xgb = XGBClassifier(random_state=0)  #XGBoost
-xgb.fit(X_train, y_train)
 
 ada = AdaBoostClassifier(random_state=0)  #AdaBoost
-ada.fit(X_train, y_train)
 
 lda = LinearDiscriminantAnalysis()   #LDA
-lda.fit(X_train, y_train)
 
 knn = KNeighborsClassifier(n_neighbors=5)  #KNN
-knn.fit(X_train, y_train)
+
+ann = MLPClassifier(hidden_layer_sizes=(100, 100), max_iter=500)
+
 
 # Predict the target values for the test set
 rf_output = rf.predict(X_val)
@@ -193,15 +191,17 @@ xgb_output = xgb.predict(X_val)
 ada_output = ada.predict(X_val)
 lda_output = lda.predict(X_val)
 knn_output = knn.predict(X_val)
+ann_output = ann.predict(X_val)
 
-# Combine the outputs into a single dataframe
-df_output = pd.DataFrame({
-    "Random Forest": rf_output,
-    "SVM": svm_output,
-    "XGBoost": xgb_output,
-    "AdaBoost": ada_output,
-    "LDA": lda_output,
-    "KNN": knn_output
-})
-   
-    
+# Create the ensemble model
+ensemble = VotingClassifier(estimators=[("knn", knn),
+                                        ("svc", svm),
+                                        ("dtc", lda),
+                                        ("rfc", rf),
+                                        ("abc", ada),
+                                        ("xgb", xgb),
+                                        ("ann", ann)],
+                            voting="soft")
+
+ensemble.fit(X_train, y_train)
+
