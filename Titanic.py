@@ -6,13 +6,16 @@ from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier
 from sklearn.model_selection import train_test_split, cross_val_score, GridSearchCV
 from sklearn.metrics import accuracy_score
 from sklearn.ensemble import VotingClassifier
+from sklearn.linear_model import LogisticRegression
+from sklearn.neural_network import MLPClassifier
 from sklearn.impute import SimpleImputer
 from sklearn.preprocessing import StandardScaler
-from sklearn.svm import SVC
-from sklearn.neural_network import MLPClassifier
+from sklearn.calibration import CalibratedClassifierCV
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 from sklearn.neighbors import KNeighborsClassifier
-from xgboost import XGBClassifier
+from sklearn.preprocessing import OneHotEncoder
+
+#from xgboost import XGBClassifier
 
 # Reading train and test data
 train = pd.read_csv("E:/Datasets/Kaggle/Titanic/train.csv")
@@ -125,12 +128,6 @@ GenerateF_MiddleAge(train)
 GenerateF_MiddleAge(test)
 
 
-
-
-plt.bar(x=train["Survived"], height=train["child"])
-plt.title("Children casualties")
-plt.legend()
-
 def drop_age(data):   #remove age column
     data.drop('Age', axis=1, inplace=True)
 drop_age(train)
@@ -145,7 +142,7 @@ def sex_cat (data):
 sex_cat(train)
 sex_cat(test)
 
-# Category Embarked
+# Categorize Embarked
 def embarked_cat (data):                                   
     data["Embarked"] = data["Embarked"].astype("category")
     data["Embarked"].cat.categories = [0,1,2]
@@ -153,55 +150,100 @@ def embarked_cat (data):
 embarked_cat(train)
 embarked_cat(test)
 
+# Categorize Fare
+def Fare_cat(data):
+    data['Fare'] = pd.cut(data['Fare'], bins=[0, 8, 15, 32, 550], labels=[0, 1, 2, 3], right=False)
+    data['Fare'].fillna(data['Fare'].mode()[0], inplace = True)
+    data["Fare"] = data["Fare"].astype("int")
+Fare_cat(train)
+Fare_cat(test)
+
+
+
 #preprocessing for Name
 def preprocess_name(data):
-    data["Name"]= data["Name"].split(",")
+    data['title'] = data['Name'].str.extract(' ([A-Za-z]+)\.', expand=False)
+
+    # Group the rare titles into a single category
+    data['title'] = data['title'].replace(['Lady', 'Countess','Capt', 'Col','Don', 'Dr', 'Major', 'Rev', 'Sir', 'Jonkheer', 'Dona'], 'Rare')
+
+    # Map the common titles to numerical values
+    data['title'] = data['title'].map({"Mr": 0, "Miss": 1, "Mrs": 2, "Master": 3, "Rare": 4})
+
+    # Convert the title column to a categorical data type
+    data['title'].fillna(data['title'].mode()[0], inplace = True)
+
+    data['title'] = data['title'].astype('int')
     
+    data = data.drop(['Name'], axis=1)  
+
+preprocess_name(train)
+preprocess_name(test)
+
+test = test.drop(['Name'], axis=1)  
+train = train.drop(['Name'], axis=1)
+
 
 #splitting data and label
 train_label = train.loc[:,["Survived"]]
 train_data= train.copy()                                                                                          
 train_data.drop('Survived', axis=1, inplace=True)
 
-input_train = train.drop("Survived", axis=1)
-target_train = train["Survived"]
-X_train, X_val, y_train, y_val = train_test_split(input_train, target_train, test_size=0.2, random_state=0)
+X_train, X_val, y_train, y_val = train_test_split(train_data, train_label, test_size=0.2, random_state=0)
 
 
 # Train the classifiers
 rf = RandomForestClassifier(n_estimators=100, criterion='entropy', random_state=0)  #Randomforest
+rf.fit(X_train, y_train)
 
-svm = SVC(kernel='linear', random_state=0)  #SVM
-
-xgb = XGBClassifier(random_state=0)  #XGBoost
+svm = CalibratedClassifierCV(SVC(kernel='linear', random_state=0))  #SVM
+svm.fit(X_train, y_train)
 
 ada = AdaBoostClassifier(random_state=0)  #AdaBoost
+ada.fit(X_train, y_train)
 
 lda = LinearDiscriminantAnalysis()   #LDA
+lda.fit(X_train, y_train)
 
 knn = KNeighborsClassifier(n_neighbors=5)  #KNN
+knn.fit(X_train, y_train)
 
-ann = MLPClassifier(hidden_layer_sizes=(100, 100), max_iter=500)
+mlp = MLPClassifier(hidden_layer_sizes=(100,100,100), max_iter=500, random_state=0) # MLP
+mlp.fit(X_train, y_train)
 
+logreg = LogisticRegression(solver='lbfgs', random_state=0) # Logistic Regression
+logreg.fit(X_train, y_train)
 
 # Predict the target values for the test set
-rf_output = rf.predict(X_val)
-svm_output = svm.predict(X_val)
-xgb_output = xgb.predict(X_val)
-ada_output = ada.predict(X_val)
-lda_output = lda.predict(X_val)
-knn_output = knn.predict(X_val)
-ann_output = ann.predict(X_val)
 
-# Create the ensemble model
+def Predict (data):
+    prediction = data.predict (X_val)
+    accuracy = accuracy_score(prediction, y_val)
+    print (f"the accuracy of {data} is {format(accuracy, '.2f')}")
+Predict (rf)
+Predict (lda)
+Predict (knn)
+Predict (svm)
+Predict (ada)
+
+# Combine the outputs into a single dataframe
 ensemble = VotingClassifier(estimators=[("knn", knn),
                                         ("svc", svm),
                                         ("dtc", lda),
                                         ("rfc", rf),
-                                        ("abc", ada),
-                                        ("xgb", xgb),
-                                        ("ann", ann)],
-                            voting="soft")
+                                        ("abc", ada)],
+                             voting='soft')
 
+for clf in [knn, svm, lda, rf, ada]:
+    if not hasattr(clf, "predict_proba"):
+        print(f"Classifier {clf} does not have a predict_proba method")
+        
 ensemble.fit(X_train, y_train)
+prediction_voting = ensemble.predict_proba(X_val)
+threshold = 0.5
+y_val_pred = (prediction_voting[:, 1] >= threshold).astype(int)
+accuracy = accuracy_score(y_val, y_val_pred)
+print(f"The accuracy of the ensemble classifier is {format(accuracy, '.2f')}")
+    
 
+    
