@@ -25,6 +25,7 @@ The Titanic Problem is based on the sinking of the 'Unsinkable' ship Titanic in 
 
 </div>
 
+In the feature engineering process, the code generates new features like "FamilySize", "Alone", "Child", "Old", "Young Adult", "Adult", "Middle Age". 
 
 
 
